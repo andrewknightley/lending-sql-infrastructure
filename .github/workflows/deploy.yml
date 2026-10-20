@@ -1,0 +1,44 @@
+name: Deploy SQL schema
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Generate a deployment script or apply the schema
+        type: choice
+        options:
+          - Script
+          - Publish
+        default: Script
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lending-database-development
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Deploy or generate script
+        shell: pwsh
+        env:
+          LENDING_SQL_CONNECTION_STRING: ${{ secrets.LENDING_SQL_CONNECTION_STRING }}
+          DEPLOY_ACTION: ${{ inputs.action }}
+        run: ./scripts/Deploy.ps1 -Action $env:DEPLOY_ACTION
+      - name: Upload generated deployment script
+        if: inputs.action == 'Script'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lending-deployment-script-${{ github.sha }}
+          path: artifacts/*.sql
+          if-no-files-found: error

@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+artifacts/
+*.user
+*.suo
+*.tmp
+*.TMP
+*.log
+.env
+.env.*
+*.local.json
+*.local.publish.xml

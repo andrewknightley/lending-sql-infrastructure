@@ -1,0 +1,1 @@
+CREATE SCHEMA [lending] AUTHORIZATION [dbo];

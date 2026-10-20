@@ -1,0 +1,27 @@
+name: Build SQL schema
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build and validate SQL project
+        shell: pwsh
+        run: ./scripts/Build.ps1
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: lending-database-${{ github.sha }}
+          path: src/Lending.Database/bin/Release/Lending.Database.dacpac
+          if-no-files-found: error
