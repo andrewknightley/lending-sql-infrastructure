@@ -1,6 +1,6 @@
 # Lending SQL infrastructure
 
-Source-controlled SQL Server schema for a retail lending exercise. This repository owns the database schema and its deployment package. It does not yet provision a SQL Server instance or implement APIs, events, or microservices.
+Source-controlled SQL Server schema for a retail lending exercise. This repository owns the database schema and its deployment package. It includes an optional local SQL Server container; API implementation lives in the separate lending-api repository.
 
 ## What is included
 
@@ -10,6 +10,7 @@ Source-controlled SQL Server schema for a retail lending exercise. This reposito
 | `src/Lending.Database/Schemas/` | The `lending` schema |
 | `src/Lending.Database/lending/Tables/` | Customer, Account, CreditProduct, and CreditAgreement definitions |
 | `src/Lending.Database/lending/Indexes/` | Indexes supporting foreign-key lookups |
+| `compose.yaml` | Local SQL Server 2022 with persistent storage; see [local setup](docs/local-sql.md) |
 | `scripts/Build.ps1` | Validate SQL references and build the DACPAC |
 | `scripts/Deploy.ps1` | Generate deployment SQL or publish the schema |
 | `.github/workflows/ci.yml` | Build on all pushes and pull requests |
@@ -60,7 +61,7 @@ $env:LENDING_SQL_CONNECTION_STRING = 'Server=(localdb)\MSSQLLocalDB;Database=Len
 
 For a local SQL Server container or SQL Server Express using SQL authentication, set the same environment variable with the connection string appropriate to that instance. Include `Database=Lending`. Keep credentials out of source control. `TrustServerCertificate=True` is for a local instance with a self-signed certificate; use certificate validation for remote deployments.
 
-SQL Server installation and container setup are the next exercise. The repository can be built before that setup is done.
+For a local container with persistent storage, follow [Local SQL Server with Docker Compose](docs/local-sql.md). It includes schema deployment, seed data, API connection settings, and stop/reset instructions. Existing SQLExpress data is not migrated.
 
 ## Generate deployment SQL
 

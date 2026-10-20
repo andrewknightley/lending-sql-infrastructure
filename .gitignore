@@ -12,3 +12,4 @@ artifacts/
 .env.*
 *.local.json
 *.local.publish.xml
+!.env.example

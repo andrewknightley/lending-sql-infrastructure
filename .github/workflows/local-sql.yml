@@ -1,0 +1,53 @@
+name: Validate local SQL containers
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Disposable CI database only; local passwords come from the developer.
+      MSSQL_SA_PASSWORD: 'CiOnly!Lending2026'
+      LENDING_SQL_CONNECTION_STRING: 'Server=localhost,14330;Database=Lending;User ID=sa;Password=CiOnly!Lending2026;Encrypt=True;TrustServerCertificate=True'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Start local SQL Server
+        run: docker compose up -d --wait --wait-timeout 240
+      - name: Publish lending schema
+        shell: pwsh
+        run: ./scripts/Deploy.ps1 -Action Publish
+      - name: Load development seed data
+        run: |
+          docker compose exec -T sqlserver sh -c 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d Lending' < scripts/Seed.Development.sql
+      - name: Recreate container while retaining data
+        run: |
+          docker compose down
+          docker compose up -d --wait --wait-timeout 240
+      - name: Verify schema and data survived
+        run: |
+          docker compose exec -T sqlserver sh -c 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d Lending' <<'SQL'
+          IF (SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('lending')) <> 4
+              THROW 50000, 'Expected four lending tables after container recreation.', 1;
+          IF NOT EXISTS (SELECT 1 FROM lending.Customer)
+              THROW 50001, 'Expected seeded customers after container recreation.', 1;
+          SELECT 'Schema and data survived container recreation.' AS Result;
+          GO
+          SQL
+      - name: Show SQL logs on failure
+        if: failure()
+        run: docker compose logs --tail 100 sqlserver
+      - name: Remove disposable CI containers and data
+        if: always()
+        run: docker compose down --volumes
