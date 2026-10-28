@@ -31,6 +31,11 @@ jobs:
       - name: Load development seed data
         run: |
           docker compose exec -T sqlserver sh -c 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d Lending' < scripts/Seed.Development.sql
+      - name: Import legacy agreement baselines twice
+        run: |
+          for pass in 1 2; do
+            docker compose exec -T sqlserver sh -c 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d Lending' < scripts/Import.LegacyAgreements.sql
+          done
       - name: Recreate container while retaining data
         run: |
           docker compose down
@@ -38,11 +43,17 @@ jobs:
       - name: Verify schema and data survived
         run: |
           docker compose exec -T sqlserver sh -c 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d Lending' <<'SQL'
-          IF (SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('lending')) <> 4
-              THROW 50000, 'Expected four lending tables after container recreation.', 1;
+          IF (SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('lending')) <> 6
+              THROW 50000, 'Expected six lending tables after container recreation.', 1;
           IF NOT EXISTS (SELECT 1 FROM lending.Customer)
               THROW 50001, 'Expected seeded customers after container recreation.', 1;
-          SELECT 'Schema and data survived container recreation.' AS Result;
+          IF EXISTS (SELECT 1 FROM lending.CreditAgreement a LEFT JOIN lending.AgreementStream s ON s.CreditAgreementId = a.CreditAgreementId WHERE s.CreditAgreementId IS NULL)
+              THROW 50002, 'An existing agreement is missing its event baseline.', 1;
+          IF (SELECT COUNT(*) FROM lending.AgreementEvent) <> (SELECT COUNT(*) FROM lending.CreditAgreement)
+              THROW 50003, 'Repeat import must not duplicate baseline events.', 1;
+          IF EXISTS (SELECT 1 FROM lending.AgreementEvent WHERE EventType <> 'AgreementImported' OR StreamVersion <> 1 OR SchemaVersion <> 1 OR ISJSON(Payload) <> 1)
+              THROW 50004, 'Invalid legacy baseline event.', 1;
+          SELECT 'Schema, events and data survived container recreation.' AS Result;
           GO
           SQL
       - name: Show SQL logs on failure
