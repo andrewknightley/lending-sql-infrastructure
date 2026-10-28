@@ -140,3 +140,7 @@ The packaged files were checked for JSON, XML, and workflow structure, schema ob
 - [Microsoft.Build.Sql tutorial](https://github.com/microsoft/DacFx/blob/main/src/Microsoft.Build.Sql/docs/Tutorial.md)
 - [SqlPackage Publish](https://learn.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-publish)
 - [SqlPackage release notes](https://learn.microsoft.com/en-us/sql/tools/sqlpackage/release-notes-sqlpackage)
+
+## Agreement event store
+
+The schema now includes `lending.AgreementStream` (stream head and unique business-number reservation) and immutable `lending.AgreementEvent` records. `CreditAgreement` is the synchronous read projection for the companion event-sourced API. Schema publication is additive and does not automatically transform existing data. See [event-store rollout](docs/event-store.md) before switching API versions.
